@@ -70,10 +70,7 @@ import observableToPromise from './util/observableToPromise';
 
 import { cloneDeep, assign, isEqual } from 'lodash';
 
-import {
-  ApolloLink,
-  Observable,
-} from 'apollo-link';
+import { ApolloLink, Observable } from 'apollo-link';
 
 declare var fetch: any;
 
@@ -317,7 +314,6 @@ describe('client', () => {
       done();
     });
   });
-
 
   it('should allow for a single query with complex default variables to take place', () => {
     const query = gql`
@@ -697,6 +693,16 @@ describe('client', () => {
       }
     `;
 
+    const data = {
+      allPeople: {
+        people: [
+          {
+            name: 'Luke Skywalker',
+          },
+        ],
+      },
+    };
+
     const errors: GraphQLError[] = [
       {
         name: 'test',
@@ -707,7 +713,7 @@ describe('client', () => {
     const networkInterface = ApolloLink.from([
       () => {
         return new Observable(observer => {
-          observer.next({ errors });
+          observer.next({ data, errors });
         });
       },
     ]);
