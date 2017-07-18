@@ -68,7 +68,12 @@ import { withWarning } from './util/wrap';
 
 import observableToPromise from './util/observableToPromise';
 
-import { cloneDeep, assign } from 'lodash';
+import { cloneDeep, assign, isEqual } from 'lodash';
+
+import {
+  ApolloLink,
+  Observable,
+} from 'apollo-link';
 
 declare var fetch: any;
 
@@ -267,7 +272,7 @@ describe('client', () => {
     return clientRoundtrip(query, { data });
   });
 
-  it('should allow a single query with an observable enabled network interface', done => {
+  it('should allow a single query with an apollo-link enabled network interface', done => {
     const query = gql`
       query people {
         allPeople(first: 1) {
@@ -294,10 +299,13 @@ describe('client', () => {
 
     const variables = { first: 1 };
 
-    const networkInterface = mockObservableNetworkInterface({
-      request: { query, variables },
-      result: { data },
-    });
+    const networkInterface = ApolloLink.from([
+      () => {
+        return Observable.of({
+          data,
+        });
+      },
+    ]);
 
     const client = new ApolloClient({
       networkInterface,
@@ -309,6 +317,7 @@ describe('client', () => {
       done();
     });
   });
+
 
   it('should allow for a single query with complex default variables to take place', () => {
     const query = gql`
@@ -677,7 +686,7 @@ describe('client', () => {
     });
   });
 
-  it('should return GraphQL errors correctly for a single query with an observable enabled network interface', done => {
+  it('should return GraphQL errors correctly for a single query with an apollo-link enabled network interface', done => {
     const query = gql`
       query people {
         allPeople(first: 1) {
@@ -695,10 +704,13 @@ describe('client', () => {
       },
     ];
 
-    const networkInterface = mockObservableNetworkInterface({
-      request: { query },
-      result: { errors },
-    });
+    const networkInterface = ApolloLink.from([
+      () => {
+        return new Observable(observer => {
+          observer.next({ errors });
+        });
+      },
+    ]);
 
     const client = new ApolloClient({
       networkInterface,
@@ -711,7 +723,7 @@ describe('client', () => {
     });
   });
 
-  it('should pass a network error correctly on a query with observable network interface', done => {
+  it('should pass a network error correctly on a query with apollo-link network interface', done => {
     const query = gql`
       query people {
         allPeople(first: 1) {
@@ -731,11 +743,13 @@ describe('client', () => {
 
     const networkError = new Error('Some kind of network error.');
 
-    const networkInterface = mockObservableNetworkInterface({
-      request: { query },
-      result: { data },
-      error: networkError,
-    });
+    const networkInterface = ApolloLink.from([
+      () => {
+        return new Observable(observer => {
+          throw networkError;
+        });
+      },
+    ]);
 
     const client = new ApolloClient({
       networkInterface,
