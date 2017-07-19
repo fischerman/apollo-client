@@ -62,27 +62,90 @@ export class InMemoryCache implements Cache {
     this.data = transform(this.data);
   }
 
-  public diffQuery(
-    query: DocumentNode,
-    variables: any,
-    returnPartialData: boolean,
-  ): DiffResult {
+  public diffQuery(query: {
+    document: DocumentNode;
+    variables: any;
+    returnPartialData?: boolean;
+    previousResult?: any;
+  }): DiffResult {
     return diffQueryAgainstStore({
       store: this.data,
-      query,
-      variables,
-      returnPartialData,
+      query: query.document,
+      variables: query.variables,
+      returnPartialData: query.returnPartialData,
+      previousResult: query.previousResult,
       fragmentMatcherFunction: this.config.fragmentMatcher,
       config: this.config,
     });
   }
 
-  public readQuery(rootId: string, query: DocumentNode, variables: any): any {
+  public diffQueryOptimistic(query: {
+    document: DocumentNode;
+    variables: any;
+    returnPartialData?: boolean;
+    previousResult?: any;
+  }): DiffResult {
+    return diffQueryAgainstStore({
+      store: this.getOptimisticData(),
+      query: query.document,
+      variables: query.variables,
+      returnPartialData: query.returnPartialData,
+      previousResult: query.previousResult,
+      fragmentMatcherFunction: this.config.fragmentMatcher,
+      config: this.config,
+    });
+  }
+
+  public readQuery(query: {
+    document: DocumentNode;
+    variables: any;
+    rootId?: string;
+    previousResult?: any;
+    nullIfIdNotFound?: boolean;
+  }): any {
+    if (
+      query.nullIfIdNotFound &&
+      query.rootId &&
+      typeof this.data[query.rootId] === 'undefined'
+    ) {
+      return null;
+    }
+
     return readQueryFromStore({
       store: this.data,
-      query,
-      rootId,
+      query: query.document,
+      variables: query.variables,
+      rootId: query.rootId,
       fragmentMatcherFunction: this.config.fragmentMatcher,
+      previousResult: query.previousResult,
+      config: this.config,
+    });
+  }
+
+  public readQueryOptimistic(query: {
+    document: DocumentNode;
+    variables: any;
+    rootId?: string;
+    previousResult?: any;
+    nullIfIdNotFound?: boolean;
+  }): any {
+    const data = this.getOptimisticData();
+
+    if (
+      query.nullIfIdNotFound &&
+      query.rootId &&
+      typeof data[query.rootId] === 'undefined'
+    ) {
+      return null;
+    }
+
+    return readQueryFromStore({
+      store: data,
+      query: query.document,
+      variables: query.variables,
+      rootId: query.rootId,
+      fragmentMatcherFunction: this.config.fragmentMatcher,
+      previousResult: query.previousResult,
       config: this.config,
     });
   }

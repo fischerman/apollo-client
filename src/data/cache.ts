@@ -11,19 +11,37 @@ export type CacheWrite = {
 
 export interface Cache {
   // TODO[shadaj]: modify typing to handle non-normalized cache
-  getData(): NormalizedCache;
-  getOptimisticData(): NormalizedCache;
-
   reset(): Promise<void>;
 
   applyTransformer(transform: (i: NormalizedCache) => NormalizedCache): void;
 
-  diffQuery(
-    query: DocumentNode,
-    variables: any,
-    returnPartialData: boolean,
-  ): any;
-  readQuery(rootId: string, query: DocumentNode, variables: any): any;
+  diffQuery(query: {
+    document: DocumentNode;
+    variables: any;
+    returnPartialData?: boolean;
+    previousResult?: any;
+  }): any;
+  diffQueryOptimistic(query: {
+    document: DocumentNode;
+    variables: any;
+    returnPartialData?: boolean;
+    previousResult?: any;
+  }): any;
+
+  readQuery(query: {
+    document: DocumentNode;
+    variables: any;
+    rootId?: string;
+    previousResult?: any;
+    nullIfIdNotFound?: boolean;
+  }): any;
+  readQueryOptimistic(query: {
+    document: DocumentNode;
+    variables: any;
+    rootId?: string;
+    previousResult?: any;
+    nullIfIdNotFound?: boolean;
+  }): any;
   writeResult(write: CacheWrite): void;
 
   removeOptimistic(id: string): void;

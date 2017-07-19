@@ -49,14 +49,6 @@ export class DataStore {
     return this.cache;
   }
 
-  public getStore(): NormalizedCache {
-    return this.cache.getData();
-  }
-
-  public getDataWithOptimisticResults(): NormalizedCache {
-    return this.cache.getOptimisticData();
-  }
-
   public markQueryResult(
     queryId: string,
     requestId: number,
@@ -148,8 +140,6 @@ export class DataStore {
         optimistic = mutation.optimisticResponse;
       }
 
-      const optimisticData = this.getDataWithOptimisticResults();
-
       const changeFn = () => {
         this.markMutationResult({
           mutationId: mutation.mutationId,
@@ -201,7 +191,11 @@ export class DataStore {
             const {
               result: currentQueryResult,
               isMissing,
-            } = this.cache.diffQuery(query.document, query.variables, true);
+            } = this.cache.diffQuery({
+              document: query.document,
+              variables: query.variables,
+              returnPartialData: true,
+            });
 
             if (isMissing) {
               return;
@@ -239,14 +233,13 @@ export class DataStore {
       // write action.
       const update = mutation.update;
       if (update) {
-        const proxy = new TransactionDataProxy(
-          this.cache.getData(),
-          this.config,
-        );
+        this.cache.performTransaction(c => {
+          const proxy = new TransactionDataProxy(c, this.config);
 
-        tryFunctionOrLogError(() => update(proxy, mutation.result));
-        const writes = proxy.finish();
-        this.executeWrites(writes);
+          tryFunctionOrLogError(() => update(proxy, mutation.result));
+          const writes = proxy.finish();
+          this.executeWrites(writes);
+        });
       }
 
       if (mutation.extraReducers) {
@@ -276,11 +269,12 @@ export class DataStore {
     variables: any,
     newResult: any,
   ) {
-    replaceQueryResults(
-      this.cache.getData(),
-      { document, variables, newResult },
-      this.config,
-    );
+    this.cache.writeResult({
+      result: newResult,
+      dataId: 'ROOT_QUERY',
+      variables,
+      document,
+    });
   }
 
   public reset() {

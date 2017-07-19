@@ -436,13 +436,10 @@ export class QueryManager {
     // store before we fetch it from the network interface.
     // TODO we hit the cache even if the policy is network-first. This could be unnecessary if the network is up.
     if (fetchType !== FetchType.refetch && fetchPolicy !== 'network-only') {
-      const { isMissing, result } = diffQueryAgainstStore({
-        query: queryDoc,
-        store: this.dataStore.getStore(),
+      const { isMissing, result } = this.dataStore.getCache().diffQuery({
+        document: queryDoc,
         variables,
         returnPartialData: true,
-        fragmentMatcherFunction: this.fragmentMatcher.match,
-        config: this.reducerConfig,
       });
 
       // If we're in here, only fetch if we have missing fields
@@ -647,13 +644,13 @@ export class QueryManager {
           }
         } else {
           try {
-            const { result: data, isMissing } = diffQueryAgainstStore({
-              store: this.getDataWithOptimisticResults(),
-              query: this.queryDocuments[queryId],
+            const {
+              result: data,
+              isMissing,
+            } = this.dataStore.getCache().diffQueryOptimistic({
+              document: this.queryDocuments[queryId],
               variables:
                 queryStoreValue.previousVariables || queryStoreValue.variables,
-              config: this.reducerConfig,
-              fragmentMatcherFunction: this.fragmentMatcher.match,
               previousResult: lastResult && lastResult.data,
             });
 
@@ -870,14 +867,6 @@ export class QueryManager {
 
   public selectApolloState(store: any) {
     return this.reduxRootSelector(store.getState());
-  }
-
-  public getInitialState(): { data: Object } {
-    return { data: this.dataStore.getStore() };
-  }
-
-  public getDataWithOptimisticResults(): NormalizedCache {
-    return this.dataStore.getDataWithOptimisticResults();
   }
 
   public addQueryListener(queryId: string, listener: QueryListener) {
@@ -1115,25 +1104,21 @@ export class QueryManager {
 
     const lastResult = observableQuery.getLastResult();
 
-    const queryOptions = observableQuery.options;
-
-    const readOptions: ReadQueryOptions = {
-      // In case of an optimistic change, apply reducer on top of the
-      // results including previous optimistic updates. Otherwise, apply it
-      // on top of the real data only.
-      store: isOptimistic
-        ? this.getDataWithOptimisticResults()
-        : this.dataStore.getStore(),
-      query: document,
-      variables,
-      config: this.reducerConfig,
-      previousResult: lastResult ? lastResult.data : undefined,
-      fragmentMatcherFunction: this.fragmentMatcher.match,
-    };
-
     try {
       // first try reading the full result from the store
-      const data = readQueryFromStore(readOptions);
+      // const data = ;
+      const data = isOptimistic
+        ? this.dataStore.getCache().readQueryOptimistic({
+            document,
+            variables,
+            previousResult: lastResult ? lastResult.data : undefined,
+          })
+        : this.dataStore.getCache().readQuery({
+            document,
+            variables,
+            previousResult: lastResult ? lastResult.data : undefined,
+          });
+
       return maybeDeepFreeze({ data, partial: false });
     } catch (e) {
       return maybeDeepFreeze({ data: {}, partial: true });
@@ -1335,12 +1320,9 @@ export class QueryManager {
               // ensure result is combined with data already in store
               // this will throw an error if there are missing fields in
               // the results if returnPartialData is false.
-              resultFromStore = readQueryFromStore({
-                store: this.dataStore.getStore(),
+              resultFromStore = this.dataStore.getCache().readQuery({
                 variables,
-                query: document,
-                config: this.reducerConfig,
-                fragmentMatcherFunction: this.fragmentMatcher.match,
+                document,
               });
               // ensure multiple errors don't get thrown
               /* tslint:disable */

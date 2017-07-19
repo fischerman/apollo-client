@@ -68,6 +68,8 @@ import {
 
 import { version } from './version';
 
+import { InMemoryCache } from './data/inMemoryCache';
+
 /**
  * This type defines a "selector" function that receives state from the Redux store
  * and returns the part of it that is managed by ApolloClient
@@ -453,7 +455,7 @@ export default class ApolloClient implements DataProxy {
               queries: this.queryManager.queryStore.getStore(),
               mutations: this.queryManager.mutationStore.getStore(),
             },
-            dataWithOptimisticResults: this.queryManager.getDataWithOptimisticResults(),
+            dataWithOptimisticResults: (this.queryManager.dataStore.getCache() as InMemoryCache).getOptimisticData(),
           });
         }
 
@@ -496,7 +498,7 @@ export default class ApolloClient implements DataProxy {
                 queries: this.queryManager.queryStore.getStore(),
                 mutations: this.queryManager.mutationStore.getStore(),
               },
-              dataWithOptimisticResults: this.queryManager.getDataWithOptimisticResults(),
+              dataWithOptimisticResults: (this.queryManager.dataStore.getCache() as InMemoryCache).getOptimisticData(),
             });
           }
 
@@ -526,9 +528,9 @@ export default class ApolloClient implements DataProxy {
     return this.queryManager ? this.queryManager.resetStore() : null;
   }
 
-  public getInitialState(): { data: Object } {
+  public getInitialState(): {} {
     this.initStore();
-    return this.queryManager.getInitialState();
+    return {};
   }
 
   private setStore(store: ApolloStore) {

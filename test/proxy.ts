@@ -10,6 +10,7 @@ import { addTypenameToDocument } from '../src/queries/queryTransform';
 import { DataWrite } from '../src/actions';
 import { getOperationName } from '../src/queries/getFromAST';
 import { DataStore } from '../src/data/store';
+import { InMemoryCache } from '../src/data/inMemoryCache';
 
 describe('ReduxDataProxy', () => {
   function createDataProxy(
@@ -615,7 +616,7 @@ describe('ReduxDataProxy', () => {
         `,
       });
 
-      assert.deepEqual((proxy as any).store.getStore(), {
+      assert.deepEqual((proxy as any).store.getCache().getData(), {
         ROOT_QUERY: {
           a: 1,
         },
@@ -631,7 +632,7 @@ describe('ReduxDataProxy', () => {
         `,
       });
 
-      assert.deepEqual((proxy as any).store.getStore(), {
+      assert.deepEqual((proxy as any).store.getCache().getData(), {
         ROOT_QUERY: {
           a: 1,
           b: 2,
@@ -650,7 +651,7 @@ describe('ReduxDataProxy', () => {
         `,
       });
 
-      assert.deepEqual((proxy as any).store.getStore(), {
+      assert.deepEqual((proxy as any).store.getCache().getData(), {
         ROOT_QUERY: {
           a: 4,
           b: 5,
@@ -674,7 +675,7 @@ describe('ReduxDataProxy', () => {
         `,
       });
 
-      assert.deepEqual((proxy as any).store.getStore(), {
+      assert.deepEqual((proxy as any).store.getCache().getData(), {
         ROOT_QUERY: {
           a: 1,
           d: {
@@ -702,7 +703,7 @@ describe('ReduxDataProxy', () => {
         `,
       });
 
-      assert.deepEqual((proxy as any).store.getStore(), {
+      assert.deepEqual((proxy as any).store.getCache().getData(), {
         ROOT_QUERY: {
           a: 1,
           d: {
@@ -750,7 +751,7 @@ describe('ReduxDataProxy', () => {
         `,
       });
 
-      assert.deepEqual((proxy as any).store.getStore(), {
+      assert.deepEqual((proxy as any).store.getCache().getData(), {
         ROOT_QUERY: {
           a: 1,
           b: 2,
@@ -799,7 +800,7 @@ describe('ReduxDataProxy', () => {
         },
       });
 
-      assert.deepEqual((proxy as any).store.getStore(), {
+      assert.deepEqual((proxy as any).store.getCache().getData(), {
         ROOT_QUERY: {
           'field({"literal":true,"value":42})': 1,
           'field({"literal":false,"value":42})': 2,
@@ -895,7 +896,7 @@ describe('ReduxDataProxy', () => {
         `,
       });
 
-      assert.deepEqual((proxy as any).store.getStore(), {
+      assert.deepEqual((proxy as any).store.getCache().getData(), {
         foo: {
           e: 4,
           h: {
@@ -923,7 +924,7 @@ describe('ReduxDataProxy', () => {
         `,
       });
 
-      assert.deepEqual((proxy as any).store.getStore(), {
+      assert.deepEqual((proxy as any).store.getCache().getData(), {
         foo: {
           e: 4,
           f: 5,
@@ -951,7 +952,7 @@ describe('ReduxDataProxy', () => {
         `,
       });
 
-      assert.deepEqual((proxy as any).store.getStore(), {
+      assert.deepEqual((proxy as any).store.getCache().getData(), {
         foo: {
           e: 4,
           f: 5,
@@ -980,7 +981,7 @@ describe('ReduxDataProxy', () => {
         `,
       });
 
-      assert.deepEqual((proxy as any).store.getStore(), {
+      assert.deepEqual((proxy as any).store.getCache().getData(), {
         foo: {
           e: 4,
           f: 5,
@@ -1028,7 +1029,7 @@ describe('ReduxDataProxy', () => {
         fragmentName: 'fooFragment',
       });
 
-      assert.deepEqual((proxy as any).store.getStore(), {
+      assert.deepEqual((proxy as any).store.getCache().getData(), {
         foo: {
           e: 4,
           f: 5,
@@ -1070,7 +1071,7 @@ describe('ReduxDataProxy', () => {
         fragmentName: 'barFragment',
       });
 
-      assert.deepEqual((proxy as any).store.getStore(), {
+      assert.deepEqual((proxy as any).store.getCache().getData(), {
         foo: {
           e: 4,
           f: 5,
@@ -1110,7 +1111,7 @@ describe('ReduxDataProxy', () => {
         },
       });
 
-      assert.deepEqual((proxy as any).store.getStore(), {
+      assert.deepEqual((proxy as any).store.getCache().getData(), {
         foo: {
           'field({"literal":true,"value":42})': 1,
           'field({"literal":false,"value":42})': 2,
@@ -1123,7 +1124,10 @@ describe('ReduxDataProxy', () => {
 describe('TransactionDataProxy', () => {
   describe('readQuery', () => {
     it('will throw an error if the transaction has finished', () => {
-      const proxy: any = new TransactionDataProxy({}, {});
+      const proxy: any = new TransactionDataProxy(
+        new InMemoryCache({}, {}),
+        {},
+      );
       proxy.finish();
 
       assert.throws(() => {
@@ -1133,13 +1137,16 @@ describe('TransactionDataProxy', () => {
 
     it('will read some data from the store', () => {
       const proxy = new TransactionDataProxy(
-        {
-          ROOT_QUERY: {
-            a: 1,
-            b: 2,
-            c: 3,
+        new InMemoryCache(
+          {},
+          {
+            ROOT_QUERY: {
+              a: 1,
+              b: 2,
+              c: 3,
+            },
           },
-        },
+        ),
         {},
       );
 
@@ -1180,35 +1187,38 @@ describe('TransactionDataProxy', () => {
 
     it('will read some deeply nested data from the store', () => {
       const proxy = new TransactionDataProxy(
-        {
-          ROOT_QUERY: {
-            a: 1,
-            b: 2,
-            c: 3,
-            d: {
-              type: 'id',
-              id: 'foo',
-              generated: false,
+        new InMemoryCache(
+          { addTypename: true },
+          {
+            ROOT_QUERY: {
+              a: 1,
+              b: 2,
+              c: 3,
+              d: {
+                type: 'id',
+                id: 'foo',
+                generated: false,
+              },
+            },
+            foo: {
+              __typename: 'Foo',
+              e: 4,
+              f: 5,
+              g: 6,
+              h: {
+                type: 'id',
+                id: 'bar',
+                generated: false,
+              },
+            },
+            bar: {
+              __typename: 'Bar',
+              i: 7,
+              j: 8,
+              k: 9,
             },
           },
-          foo: {
-            __typename: 'Foo',
-            e: 4,
-            f: 5,
-            g: 6,
-            h: {
-              type: 'id',
-              id: 'bar',
-              generated: false,
-            },
-          },
-          bar: {
-            __typename: 'Bar',
-            i: 7,
-            j: 8,
-            k: 9,
-          },
-        },
+        ),
         { addTypename: true },
       );
 
@@ -1281,12 +1291,15 @@ describe('TransactionDataProxy', () => {
 
     it('will read some data from the store with variables', () => {
       const proxy = new TransactionDataProxy(
-        {
-          ROOT_QUERY: {
-            'field({"literal":true,"value":42})': 1,
-            'field({"literal":false,"value":42})': 2,
+        new InMemoryCache(
+          { addTypename: true },
+          {
+            ROOT_QUERY: {
+              'field({"literal":true,"value":42})': 1,
+              'field({"literal":false,"value":42})': 2,
+            },
           },
-        },
+        ),
         { addTypename: true },
       );
 
@@ -1309,18 +1322,29 @@ describe('TransactionDataProxy', () => {
 
     it('will read data using custom resolvers', () => {
       const proxy = new TransactionDataProxy(
-        {
-          ROOT_QUERY: {
-            __typename: 'Query',
+        new InMemoryCache(
+          {
+            dataIdFromObject: (object: any) => object.id,
+            customResolvers: {
+              Query: {
+                thing: (_, args) => toIdValue(args.id),
+              },
+            },
+            addTypename: true,
           },
-          foo: {
-            __typename: 'Foo',
-            id: 'foo',
-            a: 1,
-            b: '2',
-            c: null,
+          {
+            ROOT_QUERY: {
+              __typename: 'Query',
+            },
+            foo: {
+              __typename: 'Foo',
+              id: 'foo',
+              a: 1,
+              b: '2',
+              c: null,
+            },
           },
-        },
+        ),
         {
           dataIdFromObject: (object: any) => object.id,
           customResolvers: {
@@ -1352,7 +1376,10 @@ describe('TransactionDataProxy', () => {
 
   describe('readFragment', () => {
     it('will throw an error if the transaction has finished', () => {
-      const proxy: any = new TransactionDataProxy({}, {});
+      const proxy: any = new TransactionDataProxy(
+        new InMemoryCache({}, {}),
+        {},
+      );
       proxy.finish();
 
       assert.throws(() => {
@@ -1361,7 +1388,7 @@ describe('TransactionDataProxy', () => {
     });
 
     it('will throw an error when there is no fragment', () => {
-      const proxy = new TransactionDataProxy({}, {});
+      const proxy = new TransactionDataProxy(new InMemoryCache({}, {}), {});
 
       assert.throws(() => {
         // Note: TypeScript is too helpful and fails compilation if fragment is missing
@@ -1393,7 +1420,7 @@ describe('TransactionDataProxy', () => {
     });
 
     it('will throw an error when there is more than one fragment but no fragment name', () => {
-      const proxy = new TransactionDataProxy({}, {});
+      const proxy = new TransactionDataProxy(new InMemoryCache({}, {}), {});
 
       assert.throws(() => {
         proxy.readFragment({
@@ -1431,35 +1458,38 @@ describe('TransactionDataProxy', () => {
 
     it('will read some deeply nested data from the store at any id', () => {
       const proxy = new TransactionDataProxy(
-        {
-          ROOT_QUERY: {
-            a: 1,
-            b: 2,
-            c: 3,
-            d: {
-              type: 'id',
-              id: 'foo',
-              generated: false,
+        new InMemoryCache(
+          { addTypename: true },
+          {
+            ROOT_QUERY: {
+              a: 1,
+              b: 2,
+              c: 3,
+              d: {
+                type: 'id',
+                id: 'foo',
+                generated: false,
+              },
+            },
+            foo: {
+              __typename: 'Foo',
+              e: 4,
+              f: 5,
+              g: 6,
+              h: {
+                type: 'id',
+                id: 'bar',
+                generated: false,
+              },
+            },
+            bar: {
+              __typename: 'Bar',
+              i: 7,
+              j: 8,
+              k: 9,
             },
           },
-          foo: {
-            __typename: 'Foo',
-            e: 4,
-            f: 5,
-            g: 6,
-            h: {
-              type: 'id',
-              id: 'bar',
-              generated: false,
-            },
-          },
-          bar: {
-            __typename: 'Bar',
-            i: 7,
-            j: 8,
-            k: 9,
-          },
-        },
+        ),
         { addTypename: true },
       );
 
@@ -1585,13 +1615,16 @@ describe('TransactionDataProxy', () => {
 
     it('will read some data from the store with variables', () => {
       const proxy = new TransactionDataProxy(
-        {
-          foo: {
-            __typename: 'Foo',
-            'field({"literal":true,"value":42})': 1,
-            'field({"literal":false,"value":42})': 2,
+        new InMemoryCache(
+          { addTypename: true },
+          {
+            foo: {
+              __typename: 'Foo',
+              'field({"literal":true,"value":42})': 1,
+              'field({"literal":false,"value":42})': 2,
+            },
           },
-        },
+        ),
         { addTypename: true },
       );
 
@@ -1614,17 +1647,23 @@ describe('TransactionDataProxy', () => {
     });
 
     it('will return null when an id that can’t be found is provided', () => {
-      const client1 = new TransactionDataProxy({}, {});
+      const client1 = new TransactionDataProxy(new InMemoryCache({}, {}), {});
       const client2 = new TransactionDataProxy(
-        {
-          bar: { __typename: 'Type1', a: 1, b: 2, c: 3 },
-        },
+        new InMemoryCache(
+          {},
+          {
+            bar: { __typename: 'Type1', a: 1, b: 2, c: 3 },
+          },
+        ),
         {},
       );
       const client3 = new TransactionDataProxy(
-        {
-          foo: { __typename: 'Type1', a: 1, b: 2, c: 3 },
-        },
+        new InMemoryCache(
+          {},
+          {
+            foo: { __typename: 'Type1', a: 1, b: 2, c: 3 },
+          },
+        ),
         {},
       );
 
@@ -1671,22 +1710,33 @@ describe('TransactionDataProxy', () => {
 
     it('will read data using custom resolvers', () => {
       const proxy = new TransactionDataProxy(
-        {
-          ROOT_QUERY: {
-            __typename: 'Query',
+        new InMemoryCache(
+          {
+            dataIdFromObject: (object: any) => object.id,
+            customResolvers: {
+              Query: {
+                thing: (_, args) => toIdValue(args.id),
+              },
+            },
+            addTypename: true,
           },
-          foo: {
-            __typename: 'Query',
-            id: 'foo',
+          {
+            ROOT_QUERY: {
+              __typename: 'Query',
+            },
+            foo: {
+              __typename: 'Query',
+              id: 'foo',
+            },
+            bar: {
+              __typename: 'Thing',
+              id: 'bar',
+              a: 1,
+              b: '2',
+              c: null,
+            },
           },
-          bar: {
-            __typename: 'Thing',
-            id: 'bar',
-            a: 1,
-            b: '2',
-            c: null,
-          },
-        },
+        ),
         {
           dataIdFromObject: (object: any) => object.id,
           customResolvers: {
@@ -1720,7 +1770,10 @@ describe('TransactionDataProxy', () => {
 
   describe('writeQuery', () => {
     it('will throw an error if the transaction has finished', () => {
-      const proxy: any = new TransactionDataProxy({}, {});
+      const proxy: any = new TransactionDataProxy(
+        new InMemoryCache({}, {}),
+        {},
+      );
       proxy.finish();
 
       assert.throws(() => {
@@ -1729,7 +1782,10 @@ describe('TransactionDataProxy', () => {
     });
 
     it('will create writes that get returned when finished', () => {
-      const proxy = new TransactionDataProxy({}, { addTypename: true });
+      const proxy = new TransactionDataProxy(
+        new InMemoryCache({ addTypename: true }, {}),
+        { addTypename: true },
+      );
 
       proxy.writeQuery({
         data: { a: 1, b: 2, c: 3 },
@@ -1805,7 +1861,9 @@ describe('TransactionDataProxy', () => {
 
   describe('writeFragment', () => {
     it('will throw an error if the transaction has finished', () => {
-      const proxy: any = new TransactionDataProxy({}, { addTypename: true });
+      const proxy: any = new TransactionDataProxy(new InMemoryCache({}, {}), {
+        addTypename: true,
+      });
       proxy.finish();
 
       assert.throws(() => {
@@ -1814,7 +1872,7 @@ describe('TransactionDataProxy', () => {
     });
 
     it('will create writes that get returned when finished', () => {
-      const proxy = new TransactionDataProxy({}, {});
+      const proxy = new TransactionDataProxy(new InMemoryCache({}, {}), {});
 
       proxy.writeFragment({
         data: { a: 1, b: 2, c: 3 },
@@ -1942,7 +2000,10 @@ describe('TransactionDataProxy', () => {
         },
       };
 
-      const proxy = new TransactionDataProxy(data, { addTypename: true });
+      const proxy = new TransactionDataProxy(
+        new InMemoryCache({ addTypename: true }, { ...data }),
+        { addTypename: true },
+      );
 
       assert.deepEqual<{} | null>(
         proxy.readFragment({
@@ -2076,7 +2137,7 @@ describe('TransactionDataProxy', () => {
         },
       );
 
-      assert.deepEqual((proxy as any).data, {
+      assert.deepEqual((proxy as any).cache.getData(), {
         foo: {
           __typename: 'Foo',
           a: 7,
@@ -2119,10 +2180,19 @@ describe('TransactionDataProxy', () => {
 
     it('will write data to a specific id', () => {
       const data = {};
-      const proxy = new TransactionDataProxy(data, {
-        dataIdFromObject: (o: any) => o.id,
-        addTypename: true,
-      });
+      const proxy = new TransactionDataProxy(
+        new InMemoryCache(
+          {
+            dataIdFromObject: (o: any) => o.id,
+            addTypename: true,
+          },
+          { ...data },
+        ),
+        {
+          dataIdFromObject: (o: any) => o.id,
+          addTypename: true,
+        },
+      );
 
       proxy.writeQuery({
         query: gql`
@@ -2182,7 +2252,7 @@ describe('TransactionDataProxy', () => {
         },
       );
 
-      assert.deepEqual((proxy as any).data, {
+      assert.deepEqual((proxy as any).cache.data, {
         ROOT_QUERY: {
           a: 1,
           b: 2,
