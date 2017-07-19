@@ -42,8 +42,6 @@ import {
 
 import { addTypenameToDocument } from '../queries/queryTransform';
 
-import { NormalizedCache } from '../data/storeUtils';
-
 import { createStoreReducer } from '../data/resultReducers';
 
 import { DataProxy } from '../data/proxy';

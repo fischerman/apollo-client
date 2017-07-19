@@ -8,15 +8,9 @@ import { ApolloReducerConfig, ApolloReducer } from '../store';
 
 import { graphQLResultHasError } from './storeUtils';
 
-import { replaceQueryResults } from './replaceQueryResults';
-
 import { tryFunctionOrLogError } from '../util/errorHandling';
 
 import { ExecutionResult, DocumentNode } from 'graphql';
-
-import { assign } from '../util/assign';
-
-import { cloneDeep } from '../util/cloneDeep';
 
 import { Cache, CacheWrite } from './cache';
 

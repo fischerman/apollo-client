@@ -14,8 +14,6 @@ import {
   DiffResult,
 } from './readFromStore';
 
-import { cloneDeep } from '../util/cloneDeep';
-
 export type OptimisticStoreItem = {
   id: string;
   data: NormalizedCache;
