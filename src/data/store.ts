@@ -70,19 +70,27 @@ export class DataStore {
       });
 
       if (extraReducers) {
-        extraReducers.forEach(reducer => {
-          this.cache.applyTransformer(i => {
-            return reducer(i, {
-              type: 'APOLLO_QUERY_RESULT',
-              result,
-              document,
-              operationName: getOperationName(document),
-              variables,
-              queryId,
-              requestId,
+        const cache = this.cache;
+        if (cache instanceof InMemoryCache) {
+          extraReducers.forEach(reducer => {
+            cache.applyTransformer(i => {
+              return reducer(i, {
+                type: 'APOLLO_QUERY_RESULT',
+                result,
+                document,
+                operationName: getOperationName(document),
+                variables,
+                queryId,
+                requestId,
+              });
             });
           });
-        });
+        } else {
+          console.warn(
+            'You supplied an reducer in your query, but are not using an in-memory cache.' +
+              ' Reducers are not supported with caches that are not in-memory.',
+          );
+        }
       }
     }
   }
@@ -107,18 +115,26 @@ export class DataStore {
       });
 
       if (extraReducers) {
-        extraReducers.forEach(reducer => {
-          this.cache.applyTransformer(i => {
-            return reducer(i, {
-              type: 'APOLLO_SUBSCRIPTION_RESULT',
-              result,
-              document,
-              operationName: getOperationName(document),
-              variables,
-              subscriptionId,
+        const cache = this.cache;
+        if (cache instanceof InMemoryCache) {
+          extraReducers.forEach(reducer => {
+            cache.applyTransformer(i => {
+              return reducer(i, {
+                type: 'APOLLO_SUBSCRIPTION_RESULT',
+                result,
+                document,
+                operationName: getOperationName(document),
+                variables,
+                subscriptionId,
+              });
             });
           });
-        });
+        } else {
+          console.warn(
+            'You supplied an reducer in your query, but are not using an in-memory cache.' +
+              ' Reducers are not supported with caches that are not in-memory.',
+          );
+        }
       }
     }
   }
@@ -243,19 +259,27 @@ export class DataStore {
       }
 
       if (mutation.extraReducers) {
-        mutation.extraReducers.forEach(reducer => {
-          this.cache.applyTransformer(i => {
-            return reducer(i, {
-              type: 'APOLLO_MUTATION_RESULT',
-              mutationId: mutation.mutationId,
-              result: mutation.result,
-              document: mutation.document,
-              operationName: getOperationName(mutation.document),
-              variables: mutation.variables,
-              mutation: mutation.mutationId,
+        const cache = this.cache;
+        if (cache instanceof InMemoryCache) {
+          mutation.extraReducers.forEach(reducer => {
+            cache.applyTransformer(i => {
+              return reducer(i, {
+                type: 'APOLLO_MUTATION_RESULT',
+                mutationId: mutation.mutationId,
+                result: mutation.result,
+                document: mutation.document,
+                operationName: getOperationName(mutation.document),
+                variables: mutation.variables,
+                mutation: mutation.mutationId,
+              });
             });
           });
-        });
+        } else {
+          console.warn(
+            'You supplied an reducer in your query, but are not using an in-memory cache.' +
+              ' Reducers are not supported with caches that are not in-memory.',
+          );
+        }
       }
     }
   }

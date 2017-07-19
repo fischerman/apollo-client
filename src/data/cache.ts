@@ -1,7 +1,5 @@
 import { DocumentNode } from 'graphql';
 
-import { NormalizedCache } from './storeUtils';
-
 export type CacheWrite = {
   dataId: string;
   result: any;
@@ -10,10 +8,7 @@ export type CacheWrite = {
 };
 
 export interface Cache {
-  // TODO[shadaj]: modify typing to handle non-normalized cache
   reset(): Promise<void>;
-
-  applyTransformer(transform: (i: NormalizedCache) => NormalizedCache): void;
 
   diffQuery(query: {
     document: DocumentNode;
@@ -21,6 +16,7 @@ export interface Cache {
     returnPartialData?: boolean;
     previousResult?: any;
   }): any;
+
   diffQueryOptimistic(query: {
     document: DocumentNode;
     variables: any;
@@ -35,6 +31,7 @@ export interface Cache {
     previousResult?: any;
     nullIfIdNotFound?: boolean;
   }): any;
+
   readQueryOptimistic(query: {
     document: DocumentNode;
     variables: any;
@@ -42,6 +39,7 @@ export interface Cache {
     previousResult?: any;
     nullIfIdNotFound?: boolean;
   }): any;
+
   writeResult(write: CacheWrite): void;
 
   removeOptimistic(id: string): void;
