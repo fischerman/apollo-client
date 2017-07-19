@@ -1,6 +1,7 @@
 # Change log
 
 ### vNEXT
+- Introduce a new Cache API that makes it possible to plug in custom cache implementations into the client [PR 1921](https://github.com/apollographql/apollo-client/pull/1921)
 - Migrated the cache away from Redux in preparation for the generic store API [PR 1907](https://github.com/apollographql/apollo-client/pull/1907)
 - Fix issue with fetchMore not merging results correctly when the @connection directive is used [PR #1915](https://github.com/apollographql/apollo-client/pull/1915)
 - added prettier to manage formatting of project [PR #1904](https://github.com/apollographql/apollo-client/pull/1904)

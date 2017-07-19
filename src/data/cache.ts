@@ -13,16 +13,18 @@ export interface Cache {
   // TODO[shadaj]: modify typing to handle non-normalized cache
   getData(): NormalizedCache;
   getOptimisticData(): NormalizedCache;
-  writeResult(write: CacheWrite): void;
-  setData(data: NormalizedCache): void;
-  reset(): void;
+
+  reset(): Promise<void>;
+
   applyTransformer(transform: (i: NormalizedCache) => NormalizedCache): void;
+
   diffQuery(
     query: DocumentNode,
     variables: any,
     returnPartialData: boolean,
   ): any;
   readQuery(rootId: string, query: DocumentNode, variables: any): any;
+  writeResult(write: CacheWrite): void;
 
   removeOptimistic(id: string): void;
 

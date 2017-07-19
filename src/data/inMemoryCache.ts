@@ -50,21 +50,10 @@ export class InMemoryCache implements Cache {
     return this.optimistic;
   }
 
-  public setData(data: NormalizedCache): void {
-    this.data = data;
-  }
-
-  public writeResult(write: CacheWrite): void {
-    writeResultToStore({
-      ...write,
-      store: this.data,
-      dataIdFromObject: this.config.dataIdFromObject,
-      fragmentMatcherFunction: this.config.fragmentMatcher,
-    });
-  }
-
-  public reset(): void {
+  public reset(): Promise<void> {
     this.data = {};
+
+    return Promise.resolve();
   }
 
   public applyTransformer(
@@ -98,6 +87,15 @@ export class InMemoryCache implements Cache {
     });
   }
 
+  public writeResult(write: CacheWrite): void {
+    writeResultToStore({
+      ...write,
+      store: this.data,
+      dataIdFromObject: this.config.dataIdFromObject,
+      fragmentMatcherFunction: this.config.fragmentMatcher,
+    });
+  }
+
   public removeOptimistic(id: string) {
     // Throw away optimistic changes of that particular mutation
     const toPerform = this.optimistic.filter(item => item.id !== id);
@@ -111,7 +109,7 @@ export class InMemoryCache implements Cache {
   }
 
   public performTransaction(transaction: (c: Cache) => void) {
-    // todo: does this need to be different, or is this okay for an in-memory cache?
+    // TODO: does this need to be different, or is this okay for an in-memory cache?
     transaction(this);
   }
 
