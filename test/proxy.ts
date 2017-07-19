@@ -24,7 +24,10 @@ describe('ReduxDataProxy', () => {
   ) {
     const dataStore = new DataStore(
       config || {},
-      initialState ? initialState.apollo.data : {},
+      new InMemoryCache(
+        config || {},
+        initialState ? initialState.apollo.data : {},
+      ),
     );
 
     const fm = new HeuristicFragmentMatcher();

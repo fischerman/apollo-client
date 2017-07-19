@@ -1,26 +1,12 @@
-import {
-  ApolloAction,
-  isQueryResultAction,
-  isMutationResultAction,
-  isUpdateQueryResultAction,
-  isStoreResetAction,
-  isSubscriptionResultAction,
-  isWriteAction,
-  QueryWithUpdater,
-  DataWrite,
-} from '../actions';
+import { QueryWithUpdater, DataWrite } from '../actions';
 
 import { TransactionDataProxy, DataProxy } from '../data/proxy';
 
-import { QueryStore } from '../queries/store';
-
 import { getOperationName } from '../queries/getFromAST';
-
-import { MutationStore } from '../mutations/store';
 
 import { ApolloReducerConfig, ApolloReducer } from '../store';
 
-import { graphQLResultHasError, NormalizedCache } from './storeUtils';
+import { graphQLResultHasError } from './storeUtils';
 
 import { replaceQueryResults } from './replaceQueryResults';
 
@@ -40,9 +26,12 @@ export class DataStore {
   private cache: Cache;
   private config: ApolloReducerConfig;
 
-  constructor(config: ApolloReducerConfig, initialStore: NormalizedCache = {}) {
+  constructor(
+    config: ApolloReducerConfig,
+    initialCache: Cache = new InMemoryCache(config, {}),
+  ) {
     this.config = config;
-    this.cache = new InMemoryCache(config, initialStore);
+    this.cache = initialCache;
   }
 
   public getCache(): Cache {

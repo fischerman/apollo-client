@@ -100,6 +100,9 @@ import { WatchQueryOptions, SubscriptionOptions } from './watchQueryOptions';
 
 import { ObservableQuery } from './ObservableQuery';
 
+import { Cache } from '../data/cache';
+import { InMemoryCache } from '../data/inMemoryCache';
+
 export class QueryManager {
   public static EMIT_REDUX_ACTIONS = true;
 
@@ -163,7 +166,7 @@ export class QueryManager {
     addTypename = true,
     queryDeduplication = false,
     ssrMode = false,
-    initialDataStore = {},
+    initialCache,
   }: {
     networkInterface: NetworkInterface;
     store: ApolloStore;
@@ -173,7 +176,7 @@ export class QueryManager {
     addTypename?: boolean;
     queryDeduplication?: boolean;
     ssrMode?: boolean;
-    initialDataStore?: NormalizedCache;
+    initialCache?: Cache;
   }) {
     // XXX this might be the place to do introspection for inserting the `id` into the query? or
     // is that the network interface?
@@ -188,7 +191,10 @@ export class QueryManager {
     this.addTypename = addTypename;
     this.queryDeduplication = queryDeduplication;
     this.ssrMode = ssrMode;
-    this.dataStore = new DataStore(reducerConfig, initialDataStore);
+    this.dataStore = new DataStore(
+      reducerConfig,
+      initialCache ? initialCache : new InMemoryCache(this.reducerConfig, {}),
+    );
 
     // XXX This logic is duplicated in ApolloClient.ts for two reasons:
     // 1. we need it in ApolloClient.ts for readQuery and readFragment of the data proxy.
