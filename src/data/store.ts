@@ -10,8 +10,6 @@ import {
   DataWrite,
 } from '../actions';
 
-import { writeResultToStore } from './writeToStore';
-
 import { TransactionDataProxy, DataProxy } from '../data/proxy';
 
 import { QueryStore } from '../queries/store';
@@ -26,8 +24,6 @@ import { graphQLResultHasError, NormalizedCache } from './storeUtils';
 
 import { replaceQueryResults } from './replaceQueryResults';
 
-import { diffQueryAgainstStore, DiffResult } from './readFromStore';
-
 import { tryFunctionOrLogError } from '../util/errorHandling';
 
 import { ExecutionResult, DocumentNode } from 'graphql';
@@ -36,78 +32,12 @@ import { assign } from '../util/assign';
 
 import { cloneDeep } from '../util/cloneDeep';
 
-export type OptimisticStoreItem = {
-  mutationId: string;
-  data: NormalizedCache;
-  changeFn: () => void;
-};
+import { Cache, CacheWrite } from './cache';
 
-export type CacheWrite = {
-  dataId: string;
-  result: any;
-  document: DocumentNode;
-  variables?: Object;
-}
-
-export interface Cache {
-  // TODO[shadaj]: modify typing to handle non-normalized cache
-  getData(): NormalizedCache
-  writeResult(write: CacheWrite): void
-  setData(data: NormalizedCache): void
-  reset(): void
-  applyTransformer(transform: (i: NormalizedCache) => NormalizedCache): void
-  diffQuery(query: DocumentNode, variables: any, returnPartialData: boolean): any
-}
-
-class InMemoryCache implements Cache {
-  private data: NormalizedCache;
-  private config: ApolloReducerConfig;
-
-  constructor(config: ApolloReducerConfig, initialStore: NormalizedCache = {}) {
-    this.config = config;
-    this.data = initialStore;
-  }
-
-  public getData(): NormalizedCache {
-    return this.data;
-  }
-
-  public setData(data: NormalizedCache): void {
-    this.data = data;
-  }
-
-  public writeResult(write: CacheWrite): void {
-    writeResultToStore({
-      ...write,
-      store: this.data,
-      dataIdFromObject: this.config.dataIdFromObject,
-      fragmentMatcherFunction: this.config.fragmentMatcher,
-    });
-  }
-
-  public reset(): void {
-    this.data = {}
-  }
-
-  public applyTransformer(transform: (i: NormalizedCache) => NormalizedCache): void {
-    this.data = transform(this.data);
-  }
-
-  public diffQuery(query: DocumentNode, variables: any, returnPartialData: boolean): DiffResult {
-    return diffQueryAgainstStore({
-      store: this.data,
-      query,
-      variables,
-      returnPartialData,
-      fragmentMatcherFunction: this.config.fragmentMatcher,
-      config: this.config,
-    })
-  }
-}
+import { InMemoryCache } from './inMemoryCache';
 
 export class DataStore {
   private cache: Cache;
-  private optimistic: OptimisticStoreItem[] = [];
   private config: ApolloReducerConfig;
 
   constructor(config: ApolloReducerConfig, initialStore: NormalizedCache = {}) {
@@ -115,21 +45,16 @@ export class DataStore {
     this.cache = new InMemoryCache(config, initialStore);
   }
 
+  public getCache(): Cache {
+    return this.cache;
+  }
+
   public getStore(): NormalizedCache {
     return this.cache.getData();
   }
 
-  public getOptimisticQueue(): OptimisticStoreItem[] {
-    return this.optimistic;
-  }
-
   public getDataWithOptimisticResults(): NormalizedCache {
-    if (this.optimistic.length === 0) {
-      return this.cache.getData();
-    }
-
-    const patches = this.optimistic.map(opt => opt.data);
-    return assign({}, this.cache.getData(), ...patches) as NormalizedCache;
+    return this.cache.getOptimisticData();
   }
 
   public markQueryResult(
@@ -154,7 +79,7 @@ export class DataStore {
 
       if (extraReducers) {
         extraReducers.forEach(reducer => {
-          this.cache.applyTransformer((i) => {
+          this.cache.applyTransformer(i => {
             return reducer(i, {
               type: 'APOLLO_QUERY_RESULT',
               result,
@@ -191,7 +116,7 @@ export class DataStore {
 
       if (extraReducers) {
         extraReducers.forEach(reducer => {
-          this.cache.applyTransformer((i) => {
+          this.cache.applyTransformer(i => {
             return reducer(i, {
               type: 'APOLLO_SUBSCRIPTION_RESULT',
               result,
@@ -237,15 +162,14 @@ export class DataStore {
         });
       };
 
-      const patch = this.collectPatch(optimisticData, changeFn);
+      this.cache.performOptimisticTransaction(c => {
+        const orig = this.cache;
+        this.cache = c;
 
-      const optimisticState = {
-        data: patch,
-        mutationId: mutation.mutationId,
-        changeFn,
-      };
+        changeFn();
 
-      this.optimistic.push(optimisticState);
+        this.cache = orig;
+      }, mutation.mutationId);
     }
   }
 
@@ -304,8 +228,10 @@ export class DataStore {
           });
       }
 
-      cacheWrites.forEach(write => {
-        this.cache.writeResult(write);
+      this.cache.performTransaction(c => {
+        cacheWrites.forEach(write => {
+          c.writeResult(write);
+        });
       });
 
       // If the mutation has some writes associated with it then we need to
@@ -313,7 +239,10 @@ export class DataStore {
       // write action.
       const update = mutation.update;
       if (update) {
-        const proxy = new TransactionDataProxy(this.cache.getData(), this.config);
+        const proxy = new TransactionDataProxy(
+          this.cache.getData(),
+          this.config,
+        );
 
         tryFunctionOrLogError(() => update(proxy, mutation.result));
         const writes = proxy.finish();
@@ -322,7 +251,7 @@ export class DataStore {
 
       if (mutation.extraReducers) {
         mutation.extraReducers.forEach(reducer => {
-          this.cache.applyTransformer((i) => {
+          this.cache.applyTransformer(i => {
             return reducer(i, {
               type: 'APOLLO_MUTATION_RESULT',
               mutationId: mutation.mutationId,
@@ -339,15 +268,7 @@ export class DataStore {
   }
 
   public markMutationComplete(mutationId: string) {
-    // Throw away optimistic changes of that particular mutation
-    this.optimistic = this.optimistic.filter(
-      item => item.mutationId !== mutationId,
-    );
-
-    // Re-run all of our optimistic data actions on top of one another.
-    this.optimistic.forEach(change => {
-      change.data = this.collectPatch(this.cache.getData(), change.changeFn);
-    });
+    this.cache.removeOptimistic(mutationId);
   }
 
   public markUpdateQueryResult(
@@ -367,34 +288,15 @@ export class DataStore {
   }
 
   public executeWrites(writes: DataWrite[]) {
-    writes.forEach(write => {
-      writeResultToStore({
-        result: write.result,
-        dataId: write.rootId,
-        document: write.document,
-        variables: write.variables,
-        store: this.cache.getData(),
-        dataIdFromObject: this.config.dataIdFromObject,
-        fragmentMatcherFunction: this.config.fragmentMatcher,
+    this.cache.performTransaction(c => {
+      writes.forEach(write => {
+        this.cache.writeResult({
+          result: write.result,
+          dataId: write.rootId,
+          document: write.document,
+          variables: write.variables,
+        });
       });
     });
-  }
-
-  private collectPatch(before: NormalizedCache, fn: () => void): any {
-    const orig = this.cache.getData();
-    this.cache.setData(cloneDeep(before));
-    fn();
-    const after = this.cache.getData();
-    this.cache.setData(orig);
-
-    const patch: any = {};
-
-    Object.keys(after).forEach(key => {
-      if (after[key] !== before[key]) {
-        patch[key] = after[key];
-      }
-    });
-
-    return patch;
   }
 }

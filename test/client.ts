@@ -70,6 +70,8 @@ import observableToPromise from './util/observableToPromise';
 
 import { cloneDeep, assign } from 'lodash';
 
+import { InMemoryCache } from '../src/data/inMemoryCache';
+
 declare var fetch: any;
 
 // make it easy to assert with promises
@@ -2273,14 +2275,19 @@ describe('client', () => {
         },
       },
     });
-    assert.equal(client.queryManager.dataStore.getOptimisticQueue().length, 1);
+    assert.equal(
+      (client.queryManager.dataStore.getCache() as InMemoryCache).getOptimisticQueue()
+        .length,
+      1,
+    );
     mutatePromise
       .then(result => {
         done(new Error('Returned a result when it should not have.'));
       })
       .catch((error: ApolloError) => {
         assert.equal(
-          client.queryManager.dataStore.getOptimisticQueue().length,
+          (client.queryManager.dataStore.getCache() as InMemoryCache).getOptimisticQueue()
+            .length,
           0,
         );
         done();
